@@ -1,0 +1,13 @@
+.cache
+.coverage
+coverage/
+htmlcov/
+build/
+dist/
+odata.egg-info/
+data/
+docs/build
+internal-docs/build
+.\#*
+\#*
+*.py[cdo~]
