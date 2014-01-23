@@ -106,6 +106,10 @@ def item(context, name):
             if name in table.columns:
                 context['sqlobj'] = sqlobj.column(table.columns[name])
                 return
+            cols = [col for col in table.columns if col.name == name]
+            if len(cols) == 1:
+                context['sqlobj'] = sqlobj.column(cols[0])
+                return
 
     raise NotFoundException()
 
@@ -125,7 +129,7 @@ def value(context):
             or len(context['sqlobj'].columns) != 1):
         raise RequestParseError('Invalid $value')
     # §10.2.2.1
-    context['headers']['content-type'] = 'text/plain'
+    context['response_headers']['Content-Type'] = 'text/plain'
 
 
 def links(context, tables):

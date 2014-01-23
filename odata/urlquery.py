@@ -18,10 +18,10 @@ formats = dict(
 
 
 def parse_format(context, value):
-    if context['headers'].get('content-type') == 'text/plain':
+    if context['headers'].get('Content-Type') == 'text/plain':
         raise RequestParseError("Cannot have $value and $format")
     if value in formats:
-        context['headers']['content-type'] = formats[value]
+        context['headers']['Content-Type'] = formats[value]
     else:
         raise RequestParseError('Unsupported value for $format')
 
