@@ -1,8 +1,7 @@
 from sqlalchemy.sql import expression
 from sqlalchemy import select, insert, update, delete
-from sqlalchemy.dialects.oracle import dialect as OracleDialect
 
-from odata import urlpath, urlquery, urlheaders
+from odata import urlpath, urlquery, urlheaders, render
 from odata.exc import RequestParseError, NoContent
 from odata.shared import select_star
 
@@ -51,12 +50,13 @@ def validate_and_cleanup(sqlobj, request_payload):
 
 
 class RequestParser(object):
-    def __init__(self, tables, dialect=None, query_func=None):
-        if dialect is None:
-            dialect = OracleDialect()
-        self.dialect = dialect
+    def __init__(self, tables, engine=None, dialect=None, connection=None):
+        self.engine = engine
         self.tables = tables
-        self.query_func = query_func
+        self.dialect = dialect
+        self.connection = connection
+        if self.connection is None and self.engine is not None:
+            self.connection = self.engine.connect()
 
     def parse(self, path, http_verb,
               headers=None, query_args=None, payload=None):
@@ -67,21 +67,19 @@ class RequestParser(object):
         if headers:
             urlheaders.parse(context)
         context['sqlobj'] = validate_and_cleanup(context['sqlobj'], payload)
-        response = self.query(context)
-        return dict(payload=response,
-                    headers=context['response_headers'],
-                    status=context['response_status'])
-
-    def query(self, context):
-        query, binds = self.compile(context['sqlobj'])
         try:
-            response = self.query_func(query, binds)
+            context['payload'] = self.query(context['sqlobj'])
         except NoContent as e:
             e.code = context['response_status']
             raise e
-        return response
+        return self.render(context)
 
-    def compile(self, sqlobj):
-        complied = sqlobj.compile(dialect=self.dialect)
-        print unicode(complied), complied.params
-        return unicode(complied), complied.params
+    def query(self, sqlobj):
+        sqlobj = sqlobj.compile(self.engine, self.dialect)
+        return self.connection.execute(sqlobj)
+
+    def render(self, context):
+        payload = render.payload(context)
+        return dict(payload=payload,
+                    headers=context['response_headers'],
+                    status=context['response_status'])
