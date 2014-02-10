@@ -55,8 +55,6 @@ class RequestParser(object):
         self.tables = tables
         self.dialect = dialect
         self.connection = connection
-        if self.connection is None and self.engine is not None:
-            self.connection = self.engine.connect()
 
     def parse(self, path, http_verb,
               headers=None, query_args=None, payload=None):
@@ -72,14 +70,20 @@ class RequestParser(object):
         except NoContent as e:
             e.code = context['response_status']
             raise e
-        return self.render(context)
-
-    def query(self, sqlobj):
-        sqlobj = sqlobj.compile(self.engine, self.dialect)
-        return self.connection.execute(sqlobj)
-
-    def render(self, context):
-        payload = render.payload(context)
-        return dict(payload=payload,
+        return dict(payload=render.payload(context),
                     headers=context['response_headers'],
                     status=context['response_status'])
+
+    def query(self, sqlobj):
+        if self.connection is None:
+            if self.engine is not None:
+                connection = self.engine.connect()
+            else:
+                raise AttributeError("No connection or engine found")
+        else:
+            connection = self.connection()
+        sqlobj = sqlobj.compile(self.engine, self.dialect)
+        result = connection.execute(sqlobj)
+        if not result.returns_rows:
+            raise NoContent()
+        return map(dict, result)
