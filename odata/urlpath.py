@@ -18,7 +18,7 @@ count = '$count' -> count()
 value = '$value' -> value()
 links = '$links/' name:n -> links(n)
 segment = item | count | value | links
-path = segment ('/' segment)*
+path = '/'? segment ('/' segment)*
 '''
 
 
@@ -82,7 +82,7 @@ def item(context, name):
     if hasattr(sqlobj, 'table'):
         table = sqlobj.table
         if name in table.columns:
-            if isinstance(sqlobj, expression.Delele):
+            if isinstance(sqlobj, expression.Delete):
                 # §10.3.8.2
                 if not context['request_payload']:
                     context['sqlobj'] = table.update(

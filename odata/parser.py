@@ -35,7 +35,7 @@ def validate_and_cleanup(sqlobj, request_payload):
 
     if ((isinstance(sqlobj, expression.Update) or
             isinstance(sqlobj, expression.Delete)) and
-            not sqlobj._whereclause):
+            sqlobj._whereclause is None):
         raise RequestParseError('Global collection modifications not allowed')
 
     if ((isinstance(sqlobj, expression.Update) or
@@ -70,9 +70,7 @@ class RequestParser(object):
         except NoContent as e:
             e.code = context['response_status']
             raise e
-        return dict(payload=render.payload(context),
-                    headers=context['response_headers'],
-                    status=context['response_status'])
+        return self.render(context)
 
     def query(self, sqlobj):
         if self.connection is None:
@@ -87,3 +85,8 @@ class RequestParser(object):
         if not result.returns_rows:
             raise NoContent()
         return map(dict, result)
+
+    def render(self, context):
+        return dict(payload=render.payload(context),
+                    headers=context['response_headers'],
+                    status=context['response_status'])
