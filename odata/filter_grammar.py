@@ -141,9 +141,14 @@ def colgetter(sqlobj):
 
 
 def parse(context, value):
-    grammar = parsley.makeGrammar(
-        filter_grammar,
-        dict(compose=compose,
-             ops=gops,
-             get_column=colgetter(context['sqlobj'])))
+    if not value:
+        raise RequestParseError('Must provide a value for $filter')
+    try:
+        grammar = parsley.makeGrammar(
+            filter_grammar,
+            dict(compose=compose,
+                 ops=gops,
+                 get_column=colgetter(context['sqlobj'])))
+    except EOFError:
+        raise RequestParseError('Bad $filter {}'.format(value))
     context['sqlobj'] = context['sqlobj'].where(grammar(value).expr())

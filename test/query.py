@@ -1,3 +1,4 @@
+from itertools import product
 from sqlalchemy import select
 from fixtures import users, addresses
 from odata import urlquery
@@ -13,10 +14,6 @@ def context(sqlobj):
 
 def S():
     return select().select_from(users)
-
-
-def U():
-    return users.update()
 
 
 @pytest.mark.parametrize('context,qargs,expected', [
@@ -54,27 +51,21 @@ def test(context, qargs, expected):
         assert unicode(ctx['sqlobj']) == expected
 
 
+qargs = ['$select', '$top', '$skip', '$filter']
+vals = ['badstringvalue', None, '']
+bad_inputs = ((context(S()), {q: v}) for q, v in product(qargs, vals))
+
+
+@pytest.mark.parametrize('context,qargs', bad_inputs)
+def test_matrix_fail(context, qargs):
+    with pytest.raises(RequestParseError):
+        urlquery.parse(context, qargs)
+
+
 @pytest.mark.parametrize('context,qargs', [
-    (context(S()), {'$select': 'notacolumn'}),
-    (context(S()), {'$select': ''}),
-    (context(S()), {'$select': None}),
-    (context(S()), {'$select': 'notatable.id'}),
     (context(users.join(addresses).select()), {'$select': 'id'}),
-    (context(U()), {'$select': 'name'}),
-    (context(S()), {'$top': 'foo'}),
-    (context(S()), {'$top': None}),
-    (context(S()), {'$top': ''}),
-    (context(S()), {'$skip': 'foo'}),
-    (context(S()), {'$skip': None}),
-    (context(S()), {'$skip': ''}),
+    (context(users.update()), {'$select': 'name'}),
     ])
 def test_req_parse_error(context, qargs):
-    try:
+    with pytest.raises(RequestParseError):
         urlquery.parse(context, qargs)
-    except NotImplementedError:
-        pytest.skip("not implemented")
-    except RequestParseError:
-        # expected
-        pass
-    else:
-        pytest.fail('DID NOT RAISE {} {}'.format(context, qargs))
