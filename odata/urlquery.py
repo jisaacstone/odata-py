@@ -1,5 +1,5 @@
 import functools
-from odata.shared import select_star
+from odata.shared import select_star, get_tables
 from odata.exc import RequestParseError
 from odata import filter_grammar
 
@@ -27,24 +27,36 @@ def parse_format(context, value):
 
 
 def parse_select(context, value):
-    # TODO: does not handle dot identifiers eg Item.foo or Item.*
     if value == '*':
         context['sqlobj'] = select_star(context['sqlobj'])
         return
 
+    tables = get_tables(context['sqlobj'])
+
     col_names = [t.strip().replace(' ', '_') for t in value.split(',')]
     for name in col_names:
-        for tbl in context['sqlobj'].froms + [None]:
-            if tbl is None:
-                raise RequestParseError('{} not understood'.format(name))
-            if name in tbl.columns:
-                context['sqlobj'] = context['sqlobj'].column(tbl.columns[name])
-                break
-            cols = [c for c in tbl.columns if c.name == name]
-            if len(cols) == 1:
-                context['sqlobj'] = context['sqlobj'].column(cols[0])
-                print context['sqlobj']
-                break
+        if '.' in name:
+            table, _, col = name.partition('.')
+            if table not in tables:
+                raise RequestParseError('Entity {} in $select but not '
+                                        'present in url'.format(table))
+            if col == '*':
+                context['sqlobj'] = select_star(context['sqlobj'],
+                                                tables[table].columns)
+            else:    
+                if col not in tables[table].columns:
+                    raise RequestParseError('Entity {0} has not attribute {1}'
+                                            .format(table, col))
+                context['sqlobj'] = context['sqlobj'].column(
+                    tables[table].columns[col])
+        else:
+            cols = [tbl.columns[name] for tbl in tables.values()
+                    if name in tbl.columns]
+            if not cols:
+                raise RequestParseError('could not select {}'.format(name))
+            if len(cols) > 1:
+                raise RequestParseError('imprecise select {}'.format(name))
+            context['sqlobj'] = context['sqlobj'].column(cols[0])
 
 
 def parse_top(context, value):
