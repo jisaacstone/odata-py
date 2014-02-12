@@ -60,11 +60,19 @@ def parse_select(context, value):
 
 
 def parse_top(context, value):
-    context['sqlobj'] = context['sqlobj'].limit(value)
+    if isinstance(value, int) or (isinstance(value, basestring)
+                                  and value.isdigit()):
+        context['sqlobj'] = context['sqlobj'].limit(value)
+    else:
+        raise RequestParseError('invalid $top {}'.format(value))
 
 
 def parse_skip(context, value):
-    context['sqlobj'] = context['sqlobj'].offset(value)
+    if isinstance(value, int) or (isinstance(value, basestring)
+                                  and value.isdigit()):
+        context['sqlobj'] = context['sqlobj'].offset(value)
+    else:
+        raise RequestParseError('invalid $skip {}'.format(value))
 
 
 def parse_inlinecount(context, value):
